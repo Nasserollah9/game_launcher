@@ -21,7 +21,7 @@ class Airplane extends Vehicle {
     this.dodgeDirection = null;
 
     // PARRY SYSTEM
-    this.parryRadius = 80;
+    this.parryRadius = 150; // Increased radius
     this.canParry = true;
     this.parryCooldown = 90; // 1.5 seconds
     this.parryCooldownCounter = 0;
@@ -34,7 +34,7 @@ class Airplane extends Vehicle {
   }
 
   fire(target) {
-    if (soundManager) soundManager.playSound('shoot');
+
     if (this.currentWeapon === "pistol") {
       return new Pistol(this.pos.x, this.pos.y, target);
     } else if (this.currentWeapon === "missile") {
@@ -133,7 +133,7 @@ class Airplane extends Vehicle {
 
   hit() {
     if (!this.isInvincible) {
-      if (soundManager) soundManager.playSound('player_hit');
+
       this.lives--;
       this.isInvincible = true;
       this.invincibilityCounter = this.invincibilityTime;

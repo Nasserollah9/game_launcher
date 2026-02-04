@@ -51,7 +51,7 @@ class Enemy extends Vehicle {
       this.shootCooldownCounter = this.shootCooldown;
 
       // Create enemy bullet
-      if (soundManager) soundManager.playSound('enemy_shoot');
+
       return new EnemyBullet(this.pos.x, this.pos.y, target.pos);
     }
 
@@ -60,7 +60,7 @@ class Enemy extends Vehicle {
 
   hit() {
     this.health--;
-    if (soundManager) soundManager.playSound('enemy_hit');
+
     if (this.health <= 0) {
       this.isActive = false;
     }

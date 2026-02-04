@@ -81,7 +81,7 @@ class Boss extends Vehicle {
     if (this.laserCooldownCounter > 0) {
       this.laserCooldownCounter--;
     }
-     if (this.bombCooldownCounter > 0) {
+    if (this.bombCooldownCounter > 0) {
       this.bombCooldownCounter--;
     }
 
@@ -101,7 +101,7 @@ class Boss extends Vehicle {
         this.isFiringLaser = true;
         this.laserCounter = 0;
         this.laserAngle = this.targetAngle;
-        if (soundManager) soundManager.playSound('laser_fire');
+
       }
     }
 
@@ -164,7 +164,7 @@ class Boss extends Vehicle {
       }
     }
   }
-     dropBomb(bombsArray) {
+  dropBomb(bombsArray) {
     if (this.bombCooldownCounter <= 0) {
       // Drop bomb at boss position
       let bomb = new Bomb(this.pos.x - 50, this.pos.y);
@@ -204,7 +204,7 @@ class Boss extends Vehicle {
     if (!this.isChargingLaser && !this.isFiringLaser && this.laserCooldownCounter <= 0) {
       this.isChargingLaser = true;
       this.chargeCounter = 0;
-      if (soundManager) soundManager.playSound('laser_charge');
+
 
       let direction = createVector(target.x - this.pos.x, target.y - this.pos.y);
       this.targetAngle = direction.heading();
@@ -263,7 +263,7 @@ class Boss extends Vehicle {
 
   hit() {
     this.health--;
-    if (soundManager) soundManager.playSound('boss_hit');
+
     if (this.health <= 0) {
       if (this.phase === 1 && !this.phase2Triggered) {
         // Don't die, enter phase 2

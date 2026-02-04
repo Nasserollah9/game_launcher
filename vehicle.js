@@ -68,41 +68,20 @@ class Vehicle {
   }
 
   // Avoid obstacles (bombs)
+  // Avoid obstacles (bombs)
   avoid(obstacles) {
     let avoidForce = createVector(0, 0);
-    let count = 0;
 
     for (let obstacle of obstacles) {
       let d = p5.Vector.dist(this.pos, obstacle.pos);
-      
+
       // Si l'obstacle est dans le rayon de perception
       if (d < this.perceptionRadius + obstacle.r) {
-        // Calculer la force de répulsion
-        let diff = p5.Vector.sub(this.pos, obstacle.pos);
-        diff.normalize();
-        // Plus l'obstacle est proche, plus la force est grande
-        diff.div(d); // Inversement proportionnel à la distance
-        avoidForce.add(diff);
-        count++;
-
-        if (Vehicle.debug) {
-          push();
-          stroke(255, 0, 0, 100);
-          line(this.pos.x, this.pos.y, obstacle.pos.x, obstacle.pos.y);
-          pop();
-        }
+        avoidForce.add(this.evade(obstacle));
       }
     }
 
-    if (count > 0) {
-      avoidForce.div(count);
-      avoidForce.setMag(this.maxSpeed);
-      let steer = p5.Vector.sub(avoidForce, this.vel);
-      steer.limit(this.maxForce);
-      return steer;
-    }
-
-    return createVector(0, 0);
+    return avoidForce;
   }
 
   wander() {

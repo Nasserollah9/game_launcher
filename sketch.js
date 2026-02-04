@@ -10,7 +10,7 @@ let gameOver = false;
 let youWon = false;
 let waveNumber = 1;
 let enemiesKilledThisWave = 0;
-let soundManager;
+
 let stars = [];
 let victorySoundPlayed = false;
 let gameOverSoundPlayed = false;
@@ -25,7 +25,7 @@ let boundaryMargin = 50;
 function setup() {
   createCanvas(windowWidth, windowHeight);
 
-  soundManager = new SoundManager();
+
 
   // Initialize stars
   for (let i = 0; i < 100; i++) {
@@ -73,15 +73,13 @@ function draw() {
   if (gameOver) {
     if (youWon) {
       if (!victorySoundPlayed) {
-        if (soundManager) soundManager.playSound('victory');
-        if (soundManager) soundManager.stopMusic();
+
         victorySoundPlayed = true;
       }
       displayVictory();
     } else {
       if (!gameOverSoundPlayed) {
-        if (soundManager) soundManager.playSound('game_over');
-        if (soundManager) soundManager.stopMusic();
+
         gameOverSoundPlayed = true;
       }
       displayGameOver();
@@ -91,18 +89,18 @@ function draw() {
 
   // Update and show airplane
   airplane.followMouse();
-  
+
   // Apply boundaries to airplane
   let boundaryForce = airplane.boundaries(0, 0, width, height, boundaryMargin);
   airplane.applyForce(boundaryForce);
-  
+
   // Avoid bombs
   if (bombs.length > 0) {
     let avoidForce = airplane.avoid(bombs);
     avoidForce.mult(2); // Make avoid force stronger
     airplane.applyForce(avoidForce);
   }
-  
+
   airplane.update();
   airplane.show();
 
@@ -133,7 +131,7 @@ function draw() {
         // Check if we can spawn enemies (limit 2 per minute)
         if (bossEnemiesSpawned < maxBossEnemiesPerMinute) {
           let attackType = floor(random(4)); // 0, 1, 2, or 3
-          
+
           if (attackType === 0) {
             boss.chargeLaser(airplane.pos);
           } else if (attackType === 1) {
@@ -169,7 +167,7 @@ function draw() {
       // Horizontal laser attacks and bombs every 2 seconds
       if (frameCount % 120 === 0) {
         let attackType = floor(random(3)); // 0, 1, or 2
-        
+
         if (attackType === 0 || attackType === 1) {
           boss.chargeLaser(airplane.pos);
         } else {
@@ -229,13 +227,13 @@ function draw() {
     // Apply boundaries
     let boundaryForce = enemies[i].boundaries(0, 0, width, height, boundaryMargin);
     enemies[i].applyForce(boundaryForce);
-    
+
     // Avoid bombs
     if (bombs.length > 0) {
       let avoidForce = enemies[i].avoid(bombs);
       enemies[i].applyForce(avoidForce);
     }
-    
+
     enemies[i].update();
     enemies[i].show();
 
@@ -350,12 +348,12 @@ function draw() {
   for (let i = bombs.length - 1; i >= 0; i--) {
     bombs[i].update();
     bombs[i].show();
-    
+
     // Check if explosion hits airplane
     if (bombs[i].explosionHits(airplane) && !airplane.isDodging) {
       if (airplane.hit()) {
         bombs.splice(i, 1);
-        
+
         push();
         fill(255, 100, 0, 200);
         noStroke();
@@ -364,7 +362,7 @@ function draw() {
         continue;
       }
     }
-    
+
     // Remove inactive bombs
     if (!bombs[i].isActive) {
       bombs.splice(i, 1);
@@ -523,14 +521,14 @@ function displayUI() {
     textAlign(CENTER, CENTER);
     textSize(16);
     text("BOSS: " + Math.ceil(boss.health) + "/" + boss.maxHealth, barX + barWidth / 2, barY + barHeight / 2);
-    
+
     // Vertical laser cooldown in phase 2
     if (boss.phase === 2 && boss.verticalLaserCooldownCounter > 0) {
       fill(255, 0, 0);
       textSize(14);
       textAlign(RIGHT);
-      text("Next Vertical Laser: " + Math.ceil(boss.verticalLaserCooldownCounter / 60) + "s", 
-           width - 20, barY + barHeight + 20);
+      text("Next Vertical Laser: " + Math.ceil(boss.verticalLaserCooldownCounter / 60) + "s",
+        width - 20, barY + barHeight + 20);
     }
     pop();
   }
@@ -601,15 +599,13 @@ function displayVictory() {
 function mousePressed() {
   if (!gameStarted) {
     // Start game
+    // Start game
     gameStarted = true;
-    userStartAudio(); // Ensure audio context is ready
-    if (soundManager) soundManager.startMusic();
   } else if (gameOver) {
     console.log("Restarting game...");
     // Restart game
     victorySoundPlayed = false;
     gameOverSoundPlayed = false;
-    if (soundManager) soundManager.startMusic();
     gameOver = false;
     youWon = false;
     score = 0;
