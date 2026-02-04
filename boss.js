@@ -47,6 +47,11 @@ class Boss extends Vehicle {
     this.numVerticalLasers = 5;
     this.verticalLaserWidth = 80;
 
+    // ROCKET ATTACK
+    this.rocketCooldown = 300; // 5 seconds
+    this.rocketCooldownCounter = 0;
+    this.numRockets = 5;
+
     // Visual effects
     this.glowSize = 0;
     this.warningFlash = 0;
@@ -83,6 +88,9 @@ class Boss extends Vehicle {
     }
     if (this.bombCooldownCounter > 0) {
       this.bombCooldownCounter--;
+    }
+    if (this.rocketCooldownCounter > 0) {
+      this.rocketCooldownCounter--;
     }
 
     // Phase 2: Vertical laser cooldown
@@ -173,6 +181,19 @@ class Boss extends Vehicle {
       return bomb;
     }
     return null;
+  }
+
+  // Fire a swarm of flocking rockets
+  fireRockets(rocketsArray) {
+    if (this.rocketCooldownCounter <= 0) {
+      for (let i = 0; i < this.numRockets; i++) {
+        let rocket = new Rocket(this.pos.x + random(-50, 50), this.pos.y + random(-50, 50));
+        rocketsArray.push(rocket);
+      }
+      this.rocketCooldownCounter = this.rocketCooldown;
+      return true;
+    }
+    return false;
   }
 
   // Start charging vertical lasers (Phase 2 attack)

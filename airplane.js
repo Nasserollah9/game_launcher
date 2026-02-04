@@ -21,7 +21,7 @@ class Airplane extends Vehicle {
     this.dodgeDirection = null;
 
     // PARRY SYSTEM
-    this.parryRadius = 150; // Increased radius
+    this.parryRadius = 100; // Reduced radius
     this.canParry = true;
     this.parryCooldown = 90; // 1.5 seconds
     this.parryCooldownCounter = 0;
@@ -39,12 +39,16 @@ class Airplane extends Vehicle {
       return new Pistol(this.pos.x, this.pos.y, target);
     } else if (this.currentWeapon === "missile") {
       return new Missile(this.pos.x, this.pos.y, target);
+    } else if (this.currentWeapon === "rocket") {
+      return new PlayerRocket(this.pos.x, this.pos.y, enemies, boss);
     }
   }
 
   switchWeapon() {
     if (this.currentWeapon === "pistol") {
       this.currentWeapon = "missile";
+    } else if (this.currentWeapon === "missile") {
+      this.currentWeapon = "rocket";
     } else {
       this.currentWeapon = "pistol";
     }
@@ -68,27 +72,52 @@ class Airplane extends Vehicle {
   }
 
   // PARRY FUNCTION
-  parry(enemies) {
+  parry(enemies, enemyBullets) {
     if (!this.canParry || this.parryCooldownCounter > 0) {
       return null;
     }
 
-    // Chercher l'ennemi le plus proche dans le rayon de parry
-    let closestEnemy = null;
-    let closestDist = this.parryRadius;
+    let parriedSomething = false;
 
-    for (let enemy of enemies) {
-      let d = p5.Vector.dist(this.pos, enemy.pos);
-      if (d < closestDist) {
-        closestDist = d;
-        closestEnemy = enemy;
+    // 1. REFLECT BULLETS
+    if (enemyBullets) {
+      for (let bullet of enemyBullets) {
+        let d = p5.Vector.dist(this.pos, bullet.pos);
+        if (d < this.parryRadius) {
+          // Reflect bullet!
+          bullet.vel.mult(-1);
+          bullet.isReflected = true;
+          bullet.isActive = true;
+          bullet.age = 0; // Reset lifetime so it can travel back
+          parriedSomething = true;
+        }
       }
     }
 
-    if (closestEnemy) {
+    // 2. DESTROY NEARBY ENEMIES (classic behavior)
+    if (!parriedSomething) {
+      let closestEnemy = null;
+      let closestDist = this.parryRadius;
+
+      for (let enemy of enemies) {
+        let d = p5.Vector.dist(this.pos, enemy.pos);
+        if (d < closestDist) {
+          closestDist = d;
+          closestEnemy = enemy;
+        }
+      }
+
+      if (closestEnemy) {
+        this.canParry = false;
+        this.parryCooldownCounter = this.parryCooldown;
+        return closestEnemy; // Return enemy to destroy
+      }
+    }
+
+    if (parriedSomething) {
       this.canParry = false;
       this.parryCooldownCounter = this.parryCooldown;
-      return closestEnemy; // Retourne l'ennemi à détruire
+      return "reflected";
     }
 
     return null;

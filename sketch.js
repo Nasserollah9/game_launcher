@@ -1,8 +1,10 @@
 let airplane;
 let enemies = [];
 let weapons = [];
+let playerRockets = [];
 let enemyBullets = [];
 let bombs = []; // NOUVEAU
+let rockets = []; // NOUVEAU
 let boss = null;
 let score = 0;
 let gameStarted = false;
@@ -130,7 +132,7 @@ function draw() {
       if (frameCount % 180 === 0) { // Every 3 seconds
         // Check if we can spawn enemies (limit 2 per minute)
         if (bossEnemiesSpawned < maxBossEnemiesPerMinute) {
-          let attackType = floor(random(4)); // 0, 1, 2, or 3
+          let attackType = floor(random(5)); // 0, 1, 2, 3, 4
 
           if (attackType === 0) {
             boss.chargeLaser(airplane.pos);
@@ -140,9 +142,12 @@ function draw() {
           } else if (attackType === 2) {
             boss.spawnShootingEnemy(enemies);
             bossEnemiesSpawned++;
-          } else {
+          } else if (attackType === 3) {
             // Drop bomb
             boss.dropBomb(bombs);
+          } else {
+            // 5th attack type (Rockets)
+            boss.fireRockets(rockets);
           }
         } else {
           // If spawn limit reached, choose between laser and bomb
@@ -164,14 +169,17 @@ function draw() {
         }
       }
 
-      // Horizontal laser attacks and bombs every 2 seconds
+      // Horizontal laser attacks, bombs, and ROCKETS every 2 seconds
       if (frameCount % 120 === 0) {
-        let attackType = floor(random(3)); // 0, 1, or 2
+        let attackType = floor(random(4)); // 0 to 3
 
-        if (attackType === 0 || attackType === 1) {
+        if (attackType === 0) {
           boss.chargeLaser(airplane.pos);
-        } else {
+        } else if (attackType === 1) {
           boss.dropBomb(bombs);
+        } else {
+          // Rockets attack (more frequent)
+          boss.fireRockets(rockets);
         }
       }
 
@@ -299,7 +307,6 @@ function draw() {
       }
     }
 
-    // Check collision with boss
     if (boss && weapons[i].hits(boss)) {
       boss.hit();
       weapons[i].isActive = false;
@@ -314,6 +321,39 @@ function draw() {
     // Remove inactive weapons
     if (!weapons[i].isActive) {
       weapons.splice(i, 1);
+    }
+  }
+
+  // Update and show PLAYER ROCKETS
+  for (let i = playerRockets.length - 1; i >= 0; i--) {
+    playerRockets[i].flock(playerRockets);
+    playerRockets[i].findAndSeekTarget();
+    playerRockets[i].update();
+    playerRockets[i].show();
+
+    // Check collision with enemies
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      let d = p5.Vector.dist(playerRockets[i].pos, enemies[j].pos);
+      if (d < enemies[j].r + playerRockets[i].r) {
+        enemies[j].hit(); // Or kill directly
+        enemies.splice(j, 1);
+        enemiesKilledThisWave++;
+        score += 10;
+        playerRockets[i].isActive = false;
+      }
+    }
+
+    // Check collision with Boss
+    if (boss && boss.isActive) {
+      let d = p5.Vector.dist(playerRockets[i].pos, boss.pos);
+      if (d < boss.r + playerRockets[i].r) {
+        boss.hit();
+        playerRockets[i].isActive = false;
+      }
+    }
+
+    if (!playerRockets[i].isActive) {
+      playerRockets.splice(i, 1);
     }
   }
 
@@ -334,6 +374,30 @@ function draw() {
           circle(airplane.pos.x, airplane.pos.y, 50);
           pop();
           continue;
+        }
+      }
+    }
+
+    // Check collision with ENEMIES (if reflected)
+    if (enemyBullets[i].isReflected) {
+      for (let j = enemies.length - 1; j >= 0; j--) {
+        if (enemyBullets[i].hitsEnemy(enemies[j])) {
+          enemies.splice(j, 1);
+          enemiesKilledThisWave++;
+          score += 50; // Bonus for stylish kill
+
+          // Bullet destroyed? Maybe acts like piercing? Let's destroy it for now.
+          enemyBullets[i].isActive = false;
+        }
+      }
+
+      // Hit Boss?
+      if (boss && boss.isActive) {
+        let d = p5.Vector.dist(enemyBullets[i].pos, boss.pos);
+        if (d < boss.r + enemyBullets[i].r) {
+          boss.hit();
+          boss.hit(); // Double damage!
+          enemyBullets[i].isActive = false;
         }
       }
     }
@@ -363,9 +427,58 @@ function draw() {
       }
     }
 
-    // Remove inactive bombs
     if (!bombs[i].isActive) {
       bombs.splice(i, 1);
+    }
+  }
+
+  // Update and show ROCKETS
+  for (let i = rockets.length - 1; i >= 0; i--) {
+    // Flocking behaviors
+    rockets[i].flock(rockets);
+
+    // Seek airplane
+    let seekForce = rockets[i].seek(airplane.pos);
+    rockets[i].applyForce(seekForce);
+
+    rockets[i].update();
+    rockets[i].show();
+
+    // Check collision with airplane
+    if (!airplane.isDodging) {
+      let d = p5.Vector.dist(airplane.pos, rockets[i].pos);
+      if (d < (airplane.r + rockets[i].r)) {
+        if (airplane.hit()) {
+          rockets.splice(i, 1);
+
+          push();
+          fill(255, 100, 0, 200);
+          noStroke();
+          circle(airplane.pos.x, airplane.pos.y, 60);
+          pop();
+          continue;
+        }
+      }
+    }
+
+    // Check if hit by weapon
+    for (let j = weapons.length - 1; j >= 0; j--) {
+      if (weapons[j].hits(rockets[i])) {
+        rockets[i].isActive = false;
+        weapons[j].isActive = false;
+        score += 5;
+
+        push();
+        fill(255, 200, 0, 150);
+        noStroke();
+        circle(rockets[i].pos.x, rockets[i].pos.y, 20);
+        pop();
+      }
+    }
+
+    // Remove dead/old rockets
+    if (rockets[i].lifespan <= 0 || !rockets[i].isActive) {
+      rockets.splice(i, 1);
     }
   }
 
@@ -611,8 +724,10 @@ function mousePressed() {
     score = 0;
     enemies = [];
     weapons = [];
+    playerRockets = [];
     enemyBullets = [];
     bombs = []; // RESET BOMBS
+    rockets = []; // RESET ROCKETS
     waveNumber = 1;
     enemiesKilledThisWave = 0;
     bossEnemiesSpawned = 0;
@@ -623,7 +738,11 @@ function mousePressed() {
     // SHOOT - during game
     let target = createVector(mouseX, mouseY);
     let weapon = airplane.fire(target);
-    weapons.push(weapon);
+    if (weapon instanceof PlayerRocket) {
+      playerRockets.push(weapon);
+    } else {
+      weapons.push(weapon);
+    }
   }
 }
 
@@ -632,9 +751,19 @@ function keyPressed() {
 
   // SPACE to PARRY
   if (key === ' ') {
-    let parriedEnemy = airplane.parry(enemies);
-    if (parriedEnemy) {
-      let index = enemies.indexOf(parriedEnemy);
+    let result = airplane.parry(enemies, enemyBullets);
+
+    if (result === "reflected") {
+      // Parry success feedback
+      push();
+      stroke(0, 255, 255);
+      strokeWeight(4);
+      noFill();
+      circle(airplane.pos.x, airplane.pos.y, airplane.parryRadius * 2);
+      pop();
+    } else if (result) {
+      // DESTROYED ENEMY
+      let index = enemies.indexOf(result);
       if (index > -1) {
         enemies.splice(index, 1);
         enemiesKilledThisWave++;
