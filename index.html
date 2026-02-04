@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airplane Shooter Game</title>
+  <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+  <!-- Load p5.js first -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.min.js"></script>
+
+  <!-- IMPORTANT: Load classes in this exact order! -->
+  <!-- 1. Base Vehicle class -->
+  <script src="vehicle.js"></script>
+
+  <!-- 2. Weapon base class (extends Vehicle) -->
+  <script src="weapon.js"></script>
+
+  <!-- 3. Specific weapon types (extend Weapon) -->
+  <script src="pistol.js"></script>
+  <script src="missile.js"></script>
+
+  <!-- 4. Game entities (extend Vehicle, use weapons) -->
+  <script src="airplane.js"></script>
+  <script src="enemy.js"></script>
+
+  <!-- 5. Main game logic (uses all classes) -->
+  <script src="soundManager.js"></script>
+  <script src="sketch.js"></script>
+  <script src="enemyBullet.js"></script>
+  <script src="boss.js"></script>
+   <script src="bomb.js"></script>
+</body>
+
+</html>

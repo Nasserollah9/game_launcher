@@ -1,0 +1,472 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: 'Orbitron', sans-serif;
+    cursor: crosshair;
+    position: relative;
+}
+
+/* Animated space background with stars */
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        radial-gradient(circle at 15% 25%, #0a0a2e 0%, transparent 50%),
+        radial-gradient(circle at 85% 75%, #1a0a3e 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, #050510 0%, #000 100%);
+    z-index: 0;
+}
+
+/* Animated stars layer */
+body::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        radial-gradient(2px 2px at 20% 30%, white, transparent),
+        radial-gradient(2px 2px at 60% 70%, white, transparent),
+        radial-gradient(1px 1px at 50% 50%, white, transparent),
+        radial-gradient(1px 1px at 80% 10%, white, transparent),
+        radial-gradient(2px 2px at 90% 60%, white, transparent),
+        radial-gradient(1px 1px at 33% 50%, white, transparent),
+        radial-gradient(2px 2px at 15% 80%, white, transparent),
+        radial-gradient(1px 1px at 75% 25%, white, transparent);
+    background-size: 300% 300%;
+    animation: twinkle 120s linear infinite;
+    opacity: 0.6;
+    z-index: 1;
+    pointer-events: none;
+}
+
+@keyframes twinkle {
+    0% {
+        background-position: 0% 0%;
+        opacity: 0.6;
+    }
+    50% {
+        background-position: 100% 100%;
+        opacity: 0.8;
+    }
+    100% {
+        background-position: 0% 0%;
+        opacity: 0.6;
+    }
+}
+
+/* Main game container */
+#game-container {
+    position: relative;
+    z-index: 5;
+}
+
+/* Canvas with enhanced neon glow */
+canvas {
+    display: block;
+    border: 3px solid #00d2ff;
+    box-shadow: 
+        0 0 10px #00d2ff,
+        0 0 20px #00d2ff,
+        0 0 40px rgba(0, 210, 255, 0.6),
+        0 0 80px rgba(0, 210, 255, 0.4),
+        inset 0 0 10px rgba(0, 210, 255, 0.3);
+    border-radius: 8px;
+    position: relative;
+    z-index: 2;
+    animation: pulse-border 3s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+    0%, 100% {
+        box-shadow: 
+            0 0 10px #00d2ff,
+            0 0 20px #00d2ff,
+            0 0 40px rgba(0, 210, 255, 0.6),
+            0 0 80px rgba(0, 210, 255, 0.4),
+            inset 0 0 10px rgba(0, 210, 255, 0.3);
+    }
+    50% {
+        box-shadow: 
+            0 0 15px #00d2ff,
+            0 0 30px #00d2ff,
+            0 0 60px rgba(0, 210, 255, 0.8),
+            0 0 100px rgba(0, 210, 255, 0.6),
+            inset 0 0 15px rgba(0, 210, 255, 0.5);
+    }
+}
+
+/* CRT Screen effect overlay */
+.screen-overlay {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: 
+        linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+    z-index: 10;
+    background-size: 100% 3px, 3px 100%;
+    pointer-events: none;
+    animation: flicker 0.15s infinite;
+}
+
+/* Scanline effect */
+.screen-overlay::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    animation: scanline 8s linear infinite;
+    box-shadow: 0 0 10px rgba(0, 210, 255, 0.5);
+}
+
+@keyframes scanline {
+    0% {
+        transform: translateY(0);
+    }
+    100% {
+        transform: translateY(100vh);
+    }
+}
+
+/* Enhanced flicker effect */
+@keyframes flicker {
+    0% { opacity: 0.98; }
+    2% { opacity: 0.96; }
+    4% { opacity: 0.92; }
+    8% { opacity: 0.95; }
+    70% { opacity: 0.97; }
+    100% { opacity: 1; }
+}
+
+/* Corner HUD decorations */
+.corner-decoration {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    border: 2px solid rgba(0, 210, 255, 0.5);
+    pointer-events: none;
+    z-index: 15;
+    animation: corner-pulse 2s ease-in-out infinite;
+}
+
+.corner-decoration::before,
+.corner-decoration::after {
+    content: '';
+    position: absolute;
+    background: #00d2ff;
+    box-shadow: 0 0 5px #00d2ff;
+}
+
+.corner-decoration.top-left {
+    top: 20px;
+    left: 20px;
+    border-right: none;
+    border-bottom: none;
+}
+
+.corner-decoration.top-left::before {
+    top: -2px;
+    left: -2px;
+    width: 20px;
+    height: 2px;
+}
+
+.corner-decoration.top-left::after {
+    top: -2px;
+    left: -2px;
+    width: 2px;
+    height: 20px;
+}
+
+.corner-decoration.top-right {
+    top: 20px;
+    right: 20px;
+    border-left: none;
+    border-bottom: none;
+}
+
+.corner-decoration.top-right::before {
+    top: -2px;
+    right: -2px;
+    width: 20px;
+    height: 2px;
+}
+
+.corner-decoration.top-right::after {
+    top: -2px;
+    right: -2px;
+    width: 2px;
+    height: 20px;
+}
+
+.corner-decoration.bottom-left {
+    bottom: 20px;
+    left: 20px;
+    border-right: none;
+    border-top: none;
+}
+
+.corner-decoration.bottom-left::before {
+    bottom: -2px;
+    left: -2px;
+    width: 20px;
+    height: 2px;
+}
+
+.corner-decoration.bottom-left::after {
+    bottom: -2px;
+    left: -2px;
+    width: 2px;
+    height: 20px;
+}
+
+.corner-decoration.bottom-right {
+    bottom: 20px;
+    right: 20px;
+    border-left: none;
+    border-top: none;
+}
+
+.corner-decoration.bottom-right::before {
+    bottom: -2px;
+    right: -2px;
+    width: 20px;
+    height: 2px;
+}
+
+.corner-decoration.bottom-right::after {
+    bottom: -2px;
+    right: -2px;
+    width: 2px;
+    height: 20px;
+}
+
+@keyframes corner-pulse {
+    0%, 100% {
+        opacity: 0.7;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+/* Low health warning effect */
+canvas.low-health {
+    border-color: #ff0040;
+    animation: danger-pulse 0.5s ease-in-out infinite;
+}
+
+@keyframes danger-pulse {
+    0%, 100% {
+        box-shadow: 
+            0 0 10px #ff0040,
+            0 0 20px #ff0040,
+            0 0 40px rgba(255, 0, 64, 0.6),
+            inset 0 0 10px rgba(255, 0, 64, 0.3);
+    }
+    50% {
+        box-shadow: 
+            0 0 20px #ff0040,
+            0 0 40px #ff0040,
+            0 0 80px rgba(255, 0, 64, 0.8),
+            inset 0 0 20px rgba(255, 0, 64, 0.5);
+    }
+}
+
+/* Victory effect */
+canvas.victory {
+    border-color: #ffd700;
+    animation: victory-glow 1s ease-in-out infinite;
+}
+
+@keyframes victory-glow {
+    0%, 100% {
+        box-shadow: 
+            0 0 15px #ffd700,
+            0 0 30px #ffd700,
+            0 0 60px rgba(255, 215, 0, 0.6),
+            inset 0 0 15px rgba(255, 215, 0, 0.3);
+    }
+    50% {
+        box-shadow: 
+            0 0 25px #ffd700,
+            0 0 50px #ffd700,
+            0 0 100px rgba(255, 215, 0, 0.8),
+            inset 0 0 25px rgba(255, 215, 0, 0.5);
+    }
+}
+
+/* Boss phase 2 effect */
+canvas.phase-2 {
+    border-color: #ff00ff;
+    animation: phase2-pulse 2s ease-in-out infinite;
+}
+
+@keyframes phase2-pulse {
+    0%, 100% {
+        box-shadow: 
+            0 0 15px #ff00ff,
+            0 0 30px #ff00ff,
+            0 0 60px rgba(255, 0, 255, 0.6),
+            inset 0 0 15px rgba(255, 0, 255, 0.3);
+    }
+    50% {
+        box-shadow: 
+            0 0 25px #ff00ff,
+            0 0 50px #ff00ff,
+            0 0 100px rgba(255, 0, 255, 0.8),
+            inset 0 0 25px rgba(255, 0, 255, 0.5);
+    }
+}
+
+/* Loading screen */
+#loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, #0a0a2e 0%, #000 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    transition: opacity 0.8s ease-out;
+}
+
+#loading-screen.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.loading-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 64px;
+    font-weight: 900;
+    color: #00d2ff;
+    text-transform: uppercase;
+    letter-spacing: 12px;
+    margin-bottom: 40px;
+    text-shadow: 
+        0 0 10px #00d2ff,
+        0 0 20px #00d2ff,
+        0 0 40px rgba(0, 210, 255, 0.8),
+        0 0 80px rgba(0, 210, 255, 0.6);
+    animation: title-pulse 2s ease-in-out infinite;
+}
+
+@keyframes title-pulse {
+    0%, 100% {
+        transform: scale(1);
+        text-shadow: 
+            0 0 10px #00d2ff,
+            0 0 20px #00d2ff,
+            0 0 40px rgba(0, 210, 255, 0.8);
+    }
+    50% {
+        transform: scale(1.05);
+        text-shadow: 
+            0 0 20px #00d2ff,
+            0 0 40px #00d2ff,
+            0 0 80px rgba(0, 210, 255, 1),
+            0 0 120px rgba(0, 210, 255, 0.8);
+    }
+}
+
+.loading-spinner {
+    width: 80px;
+    height: 80px;
+    border: 5px solid rgba(0, 210, 255, 0.2);
+    border-top: 5px solid #00d2ff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 30px;
+    box-shadow: 
+        0 0 20px rgba(0, 210, 255, 0.5),
+        inset 0 0 20px rgba(0, 210, 255, 0.3);
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.8);
+    letter-spacing: 4px;
+    animation: flicker 2s infinite;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .loading-title {
+        font-size: 36px;
+        letter-spacing: 6px;
+    }
+    
+    .corner-decoration {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .corner-decoration.top-left,
+    .corner-decoration.top-right {
+        top: 10px;
+    }
+    
+    .corner-decoration.bottom-left,
+    .corner-decoration.bottom-right {
+        bottom: 10px;
+    }
+    
+    .corner-decoration.top-left,
+    .corner-decoration.bottom-left {
+        left: 10px;
+    }
+    
+    .corner-decoration.top-right,
+    .corner-decoration.bottom-right {
+        right: 10px;
+    }
+}
+
+/* Accessibility - reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
