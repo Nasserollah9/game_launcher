@@ -21,10 +21,29 @@ let maxBossEnemiesPerMinute = 2;
 let bossSpawnTimer = 0;
 let bossSpawnInterval = 3600;
 
+// AI EVOLUTION
+let bestBossBrain = null;
+let bestScore = 0;
+
+// AUTODRIVE (PLAYER AI)
+let isAutodrive = false;
+let generationCount = 1;
+let bestPlayerScore = 0;
+let bestPlayerBrain = null;
+
+// GA POPULATION PARAMETERS
+const POPULATION_SIZE = 10;
+let currentPopulation = []; // Array of Brains
+let savedPlayers = []; // History of dead players this generation {brain, score}
+let currentIndividualIndex = 0;
+
 // BOUNDARIES
 let boundaryMargin = 50;
 
 function setup() {
+  // Set TensorFlow.js backend to 'cpu' for compatibility
+  tf.setBackend('cpu');
+
   createCanvas(windowWidth, windowHeight);
 
 
@@ -41,6 +60,12 @@ function setup() {
 
   airplane = new Airplane(width / 2, height / 2);
 
+  // Initialize Population for GA
+  for (let i = 0; i < POPULATION_SIZE; i++) {
+    let tempAirplane = new Airplane(0, 0);
+    currentPopulation.push(tempAirplane.brain); // Store random brains
+  }
+
   // Spawn boss at start on the right side
   spawnBoss();
 }
@@ -48,6 +73,96 @@ function setup() {
 function spawnBoss() {
   // Boss fixe sur le côté droit au milieu verticalement
   boss = new Boss(width - 100, height / 2);
+  if (bestBossBrain) {
+    boss.brain = bestBossBrain.copy();
+    boss.mutate();
+    console.log("Spawned Boss with evolved brain! Best Score: " + bestScore);
+  } else {
+    console.log("Spawned Boss with new random brain.");
+  }
+}
+
+function spawnAirplane() {
+  airplane = new Airplane(width / 2, height / 2);
+
+  if (isAutodrive && currentPopulation.length > 0) {
+    // Use brain from current population
+    if (currentIndividualIndex < currentPopulation.length) {
+      airplane.brain = currentPopulation[currentIndividualIndex].copy();
+    } else {
+      console.log("Index out of bounds, spawning random");
+    }
+    console.log("Spawned Individual " + (currentIndividualIndex + 1));
+  } else if (bestPlayerBrain) {
+    airplane.brain = bestPlayerBrain.copy();
+    airplane.mutate();
+    console.log("Spawned Player with evolved brain (Manual Override)!");
+  }
+}
+
+function checkBossFitness() {
+  if (boss && boss.score > bestScore) {
+    bestScore = boss.score;
+    bestBossBrain = boss.brain.copy();
+    console.log("New Best Boss Brain! Score: " + bestScore);
+  }
+}
+
+function checkPlayerFitness() {
+  // Save current player to savedPlayers
+  savedPlayers.push({
+    brain: airplane.brain.copy(),
+    score: score
+  });
+
+  if (score > bestPlayerScore) {
+    bestPlayerScore = score;
+    bestPlayerBrain = airplane.brain.copy();
+    console.log("New Best Player Brain! Score: " + bestPlayerScore);
+  }
+}
+
+function nextGeneration() {
+  console.log('Next Generation: ' + (generationCount + 1));
+  generationCount++;
+  calculateFitness();
+
+  // Generate new population
+  currentPopulation = [];
+  for (let i = 0; i < POPULATION_SIZE; i++) {
+    currentPopulation[i] = pickOne();
+  }
+
+  savedPlayers = [];
+  currentIndividualIndex = 0;
+}
+
+function calculateFitness() {
+  let sum = 0;
+  for (let p of savedPlayers) {
+    sum += p.score;
+  }
+  for (let p of savedPlayers) {
+    p.fitness = p.score / sum;
+  }
+}
+
+function pickOne() {
+  let index = 0;
+  let r = random(1);
+  while (r > 0) {
+    r = r - savedPlayers[index].fitness;
+    index++;
+  }
+  index--;
+
+  let playerRecord = savedPlayers[index];
+  // Safety check
+  if (!playerRecord) return new NeuralNetwork(11, 16, 5);
+
+  let childBrain = playerRecord.brain.copy();
+  childBrain.mutate(0.1); // Mutate
+  return childBrain;
 }
 
 function draw() {
@@ -78,6 +193,20 @@ function draw() {
 
         victorySoundPlayed = true;
       }
+
+      // AUTODRIVE VICTORY
+      if (isAutodrive) {
+        score += 1000; // Massive bonus for winning
+        checkPlayerFitness();
+
+        currentIndividualIndex++;
+        if (currentIndividualIndex >= POPULATION_SIZE) {
+          nextGeneration();
+        }
+        setTimeout(resetGame, 1000);
+        return;
+      }
+
       displayVictory();
     } else {
       if (!gameOverSoundPlayed) {
@@ -90,7 +219,51 @@ function draw() {
   }
 
   // Update and show airplane
-  airplane.followMouse();
+  // Update and show airplane
+  if (isAutodrive) {
+    // AI Control
+    let actions = airplane.think(boss, enemies, enemyBullets);
+
+    // Handle Reward from AI thinking (e.g. good dodge)
+    if (actions.reward) {
+      score += actions.reward;
+    }
+
+    if (actions.shoot) {
+      // Fire Logic similar to mousePressed
+      let target = createVector(airplane.pos.x + 100, airplane.pos.y); // Shoot forward/randomly?
+      // Actually, aim at nearest enemy?
+      // For now, let's just fire straight ahead or towards boss
+      if (boss) target = boss.pos.copy();
+
+      if (frameCount % 15 === 0) { // Limit fire rate
+        let weapon = airplane.fire(target);
+        if (weapon instanceof PlayerRocket) {
+          playerRockets.push(weapon);
+        } else {
+          weapons.push(weapon);
+        }
+      }
+    }
+
+    if (actions.parry) {
+      let result = airplane.parry(enemies, enemyBullets);
+      if (result === "reflected") {
+        // visual
+        score += 20; // Bonus for successful parry
+      } else if (result) {
+        // Destroyed enemy
+        let index = enemies.indexOf(result);
+        if (index > -1) {
+          enemies.splice(index, 1);
+          enemiesKilledThisWave++;
+          score += 50; // Bonus for parry kill
+        }
+      }
+    }
+  } else {
+    airplane.followMouse();
+  }
 
   // Apply boundaries to airplane
   let boundaryForce = airplane.boundaries(0, 0, width, height, boundaryMargin);
@@ -106,16 +279,39 @@ function draw() {
   airplane.update();
   airplane.show();
 
+  // Early Stopping (Fail Fast)
+  if (isAutodrive && score <= -50) {
+    // Kill player to trigger restart logic
+    airplane.lives = 0;
+  }
+
   // Check if airplane is dead
   if (airplane.isDead()) {
     gameOver = true;
     youWon = false;
+    checkBossFitness(); // Check if boss did well
+
+    if (isAutodrive) {
+      checkPlayerFitness();
+
+      // Move to next individual
+      currentIndividualIndex++;
+
+      if (currentIndividualIndex >= POPULATION_SIZE) {
+        // End of Generation
+        nextGeneration();
+      }
+
+      // Auto Restart
+      setTimeout(resetGame, 500); // Shorter delay (0.5s)
+    }
     return;
   }
 
   // BOSS LOGIC - Boss is always present
   if (boss) {
-    boss.update();
+    // Pass everything that is a bullet. weapons = player bullets.
+    boss.update(airplane, weapons);
     boss.show();
 
     // Update boss spawn timer
@@ -226,6 +422,9 @@ function draw() {
       gameOver = true;
       youWon = true;
       score += 1000; // Boss bonus
+
+      checkBossFitness(); // Boss died, but maybe it lived a long time?
+
       return;
     }
   }
@@ -520,6 +719,14 @@ function displayUI() {
   textAlign(LEFT);
   textSize(20);
 
+  // Autodrive Status
+  if (isAutodrive) {
+    fill(0, 255, 255);
+    text("AUTODRIVE ENGAGED", width / 2 - 100, 30);
+    text("Generation: " + generationCount, width / 2 - 100, 60);
+    text("Best P-Score: " + bestPlayerScore, width / 2 - 100, 90);
+  }
+
   // Score
   text("Score: " + score, 20, 30);
 
@@ -643,6 +850,13 @@ function displayUI() {
       text("Next Vertical Laser: " + Math.ceil(boss.verticalLaserCooldownCounter / 60) + "s",
         width - 20, barY + barHeight + 20);
     }
+
+    // Debug: Boss Score
+    fill(200);
+    textAlign(RIGHT);
+    textSize(12);
+    text("Boss Fitness: " + boss.score + " (Best: " + bestScore + ")", width - 20, barY - 10);
+
     pop();
   }
 
@@ -732,7 +946,8 @@ function mousePressed() {
     enemiesKilledThisWave = 0;
     bossEnemiesSpawned = 0;
     bossSpawnTimer = 0;
-    airplane = new Airplane(width / 2, height / 2);
+    bossSpawnTimer = 0;
+    spawnAirplane(); // Use helper to spawn with brain
     spawnBoss();
   } else {
     // SHOOT - during game
@@ -746,7 +961,33 @@ function mousePressed() {
   }
 }
 
+function resetGame() {
+  gameStarted = true;
+  victorySoundPlayed = false;
+  gameOverSoundPlayed = false;
+  gameOver = false;
+  youWon = false;
+  score = 0;
+  enemies = [];
+  weapons = [];
+  playerRockets = [];
+  enemyBullets = [];
+  bombs = [];
+  rockets = [];
+  waveNumber = 1;
+  enemiesKilledThisWave = 0;
+  bossEnemiesSpawned = 0;
+  bossSpawnTimer = 0;
+  spawnAirplane();
+  spawnBoss();
+}
+
 function keyPressed() {
+  if (key === 'a' || key === 'A') {
+    isAutodrive = !isAutodrive;
+    console.log("Autodrive: " + isAutodrive);
+  }
+
   if (!gameStarted || gameOver) return;
 
   // SPACE to PARRY

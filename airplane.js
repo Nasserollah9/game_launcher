@@ -25,6 +25,25 @@ class Airplane extends Vehicle {
     this.canParry = true;
     this.parryCooldown = 90; // 1.5 seconds
     this.parryCooldownCounter = 0;
+
+    // AI BRAIN (Autodrive)
+    this.score = 0;
+    this.fitness = 0;
+    // Inputs:
+    // ...
+    // 9: Player X (normalized)
+    // 10: Player Y (normalized)
+    // Outputs:
+    // 0: Move Angle
+    // 1: Move Speed
+    // 2: Shoot (threshold)
+    // 3: Dodge (threshold)
+    // 4: Parry (threshold) 
+    this.brain = new NeuralNetwork(11, 16, 5);
+  }
+
+  mutate() {
+    this.brain.mutate(0.1);
   }
 
   followMouse() {
@@ -134,8 +153,52 @@ class Airplane extends Vehicle {
         this.isInvincible = false;
       }
     } else {
-      // Normal movement
+      // Automatic Driving (AI)
+      if (typeof isAutodrive !== 'undefined' && isAutodrive) {
+        // Find nearest entity helpers
+        // (We need access to global arrays: boss, enemies, enemyBullets - passed in or global?)
+        // Let's assume global for now or pass them in update(). But update() usually takes no args in p5 sketch structure unless added.
+        // Better to have a think() method called from sketch.js explicitly.
+      } else {
+        // Manual Movement
+        // this.followMouse(); // Handled in sketch.js currently? No, sketch calls followMouse() explicitely.
+        // So we will just apply physics here.
+      }
+
       super.update();
+    }
+
+    // HARD BOUNDARIES CLAMP
+    this.pos.x = constrain(this.pos.x, this.r, width - this.r);
+    this.pos.y = constrain(this.pos.y, this.r, height - this.r);
+
+    // PENALTY FOR HITTING WALLS (Teach AI to avoid edges)
+    if (typeof isAutodrive !== 'undefined' && isAutodrive) {
+      let edgeDist = 5; // Close to edge
+      if (this.pos.x <= this.r + edgeDist || this.pos.x >= width - this.r - edgeDist ||
+        this.pos.y <= this.r + edgeDist || this.pos.y >= height - this.r - edgeDist) {
+        // Penalize slightly every frame it hugs the wall
+        // We can return a penalty through actions? No update() doesn't return.
+        // We need to access global score? Or store local score and sync?
+        // Since `score` is global in sketch.js, we can try to access it if in same scope context
+        // But usually classes are separate.
+        // However, `score` variable is global.
+        // Let's check sketch.js: `let score = 0;` at top level.
+        // Airplane is in `game/airplane.js` loaded via index.html.
+        // In browser JS, `score` should be visible if defined with `let` in global scope window?
+        // Actually `let` is block scoped, `var` is function/global. 
+        // But p5.js sketch usually puts everything in global.
+        // Let's assume we can modify `this.fitness` which propagates?
+        // No, fitness is calculated from final score.
+        // Let's try modifying `window.score` or just `score` (if global).
+        // To be safe, let's decrement `this.score` (which we used for Boss) but Player uses global `score`.
+        // Wait, `checkPlayerFitness` uses `score`.
+        try {
+          if (typeof score !== 'undefined') {
+            score -= 0.1; // Small penalty per frame
+          }
+        } catch (e) { }
+      }
     }
 
     // Update invincibility (si pas en dodge)
@@ -232,6 +295,8 @@ class Airplane extends Vehicle {
 
     pop();
 
+    pop();
+
     // Draw invincibility shield
     if (this.isInvincible) {
       push();
@@ -258,5 +323,115 @@ class Airplane extends Vehicle {
     textAlign(CENTER);
     text(this.currentWeapon.toUpperCase(), this.pos.x, this.pos.y - 30);
     pop();
+  }
+
+  // AI Thinking Function
+  think(boss, enemies, bullets) {
+    let inputs = [];
+
+    // 1. Vector to Boss
+    if (boss && boss.isActive) {
+      let vecToBoss = p5.Vector.sub(boss.pos, this.pos);
+      inputs[0] = map(vecToBoss.x, -width, width, -1, 1);
+      inputs[1] = map(vecToBoss.y, -height, height, -1, 1);
+    } else {
+      inputs[0] = 0;
+      inputs[1] = 0;
+    }
+
+    // 2. Nearest Enemy
+    let closestEnemy = null;
+    let closestEnemyDist = Infinity;
+    for (let enemy of enemies) {
+      let d = p5.Vector.dist(this.pos, enemy.pos);
+      if (d < closestEnemyDist) {
+        closestEnemyDist = d;
+        closestEnemy = enemy;
+      }
+    }
+    if (closestEnemy) {
+      let vecToEnemy = p5.Vector.sub(closestEnemy.pos, this.pos);
+      inputs[2] = map(vecToEnemy.x, -width, width, -1, 1);
+      inputs[3] = map(vecToEnemy.y, -height, height, -1, 1);
+    } else {
+      inputs[2] = 0;
+      inputs[3] = 0;
+    }
+
+    // 3. Nearest Bullet
+    let closestBullet = null;
+    let closestBulletDist = Infinity;
+    for (let bullet of bullets) {
+      let d = p5.Vector.dist(this.pos, bullet.pos);
+      if (d < closestBulletDist) {
+        closestBulletDist = d;
+        closestBullet = bullet;
+      }
+    }
+    if (closestBullet) {
+      let vecToBullet = p5.Vector.sub(closestBullet.pos, this.pos);
+      inputs[4] = map(vecToBullet.x, -width, width, -1, 1);
+      inputs[5] = map(vecToBullet.y, -height, height, -1, 1);
+    } else {
+      inputs[4] = 0;
+      inputs[5] = 0;
+    }
+
+    // 4. Self Status
+    inputs[6] = map(this.lives, 0, 3, 0, 1);
+    inputs[7] = map(this.dodgeCooldownCounter, 0, this.dodgeCooldown, 0, 1);
+    inputs[8] = map(this.parryCooldownCounter, 0, this.parryCooldown, 0, 1);
+
+    // NEW: Position Awareness (Avoid Walls)
+    inputs[9] = map(this.pos.x, 0, width, 0, 1);
+    inputs[10] = map(this.pos.y, 0, height, 0, 1);
+
+    // PREDICT
+    let outputs = this.brain.predict(inputs);
+
+    // Outputs processing
+    // 0: Angle, 1: Speed
+    let angle = map(outputs[0], 0, 1, -PI, PI);
+    let speed = map(outputs[1], 0, 1, 0, this.maxSpeed);
+
+    // Apply Move
+    let desired = p5.Vector.fromAngle(angle);
+    desired.setMag(speed);
+    let steer = p5.Vector.sub(desired, this.vel);
+    steer.limit(this.maxForce);
+    this.applyForce(steer);
+
+    let actions = {
+      shoot: false,
+      dodge: false,
+      parry: false
+    };
+
+    // 2: Shoot
+    if (outputs[2] > 0.5) {
+      actions.shoot = true;
+    }
+
+    // 3: Dodge
+    if (outputs[3] > 0.8) {
+      this.dodge();
+      actions.dodge = true;
+
+      // Reward dodging if bullet is near (Learning incentive)
+      if (closestBulletDist < 200) {
+        // We can't easily modify global score here without reference
+        // Let's return a score increment instead? 
+        // Or just trust the caller to handle rewards based on `actions.dodge`?
+        // Let's attach a "reward" property to actions.
+        actions.reward = 20;
+      }
+    }
+
+    // 4: Parry
+    if (outputs[4] > 0.8) {
+      actions.parry = true;
+    }
+
+    return actions;
   }
 }

@@ -55,6 +55,27 @@ class Boss extends Vehicle {
     // Visual effects
     this.glowSize = 0;
     this.warningFlash = 0;
+
+    // AI BRAIN
+    this.fitness = 0;
+    this.score = 0; // Internal score for fitness calculation
+
+    // Inputs: 
+    // 0: Player X
+    // 1: Player Y
+    // 2: Nearest Bullet X
+    // 3: Nearest Bullet Y
+    // 4: Boss Health
+    // Outputs:
+    // 0: Move Angle
+    // 1: Move Speed
+    // 2: Parry (if > 0.5)
+    // 3: Dodge (if > 0.5)
+    this.brain = new NeuralNetwork(5, 10, 4);
+  }
+
+  mutate() {
+    this.brain.mutate(0.1);
   }
 
   enterPhase2() {
@@ -67,30 +88,107 @@ class Boss extends Vehicle {
     this.verticalLaserCooldownCounter = this.verticalLaserCooldown; // Start cooldown
   }
 
-  update() {
+  think(player, bullets) {
+    // Find nearest bullet
+    let closestBullet = null;
+    let closestD = Infinity;
+    for (let bullet of bullets) {
+      let d = p5.Vector.dist(this.pos, bullet.pos);
+      if (d < closestD) {
+        closestD = d;
+        closestBullet = bullet;
+      }
+    }
+
+    let inputs = [];
+
+    // RELATIVE COORDINATES (Normalized -1 to 1)
+    // Vector to Player
+    let vecToPlayer = p5.Vector.sub(player.pos, this.pos);
+    inputs[0] = map(vecToPlayer.x, -width, width, -1, 1);
+    inputs[1] = map(vecToPlayer.y, -height, height, -1, 1);
+
+    // Vector to Nearest Bullet
+    if (closestBullet) {
+      let vecToBullet = p5.Vector.sub(closestBullet.pos, this.pos);
+      inputs[2] = map(vecToBullet.x, -width, width, -1, 1);
+      inputs[3] = map(vecToBullet.y, -height, height, -1, 1);
+    } else {
+      inputs[2] = 0;
+      inputs[3] = 0;
+    }
+
+    inputs[4] = map(this.health, 0, this.maxHealth, 0, 1);
+
+    let outputs = this.brain.predict(inputs);
+
+    // Output 0: Move Angle (mapped to -PI to PI)
+    let moveAngle = map(outputs[0], 0, 1, -PI, PI);
+    // Output 1: Move Speed
+    let moveSpeed = map(outputs[1], 0, 1, 0, this.maxSpeed);
+
+    // Apply movement
+    let desired = p5.Vector.fromAngle(moveAngle);
+    desired.setMag(moveSpeed);
+    let steer = p5.Vector.sub(desired, this.vel);
+    steer.limit(this.maxForce);
+    this.applyForce(steer);
+
+    // Output 2: Parry
+    if (outputs[2] > 0.8) { // Higher threshold for parry
+      this.performParry(bullets);
+    }
+
+    // Output 3: Dodge (Dash)
+    if (outputs[3] > 0.8) { // Higher threshold for dodge
+      this.performDodge();
+
+      // REWARD for dodging if a bullet is actually near
+      if (closestD < 200) {
+        this.score += 20;
+      }
+    }
+  }
+
+  update(player, bullets) {
     // Phase 2 movement - more aggressive
     if (this.phase === 2) {
       let wanderForce = this.wander();
       wanderForce.mult(1.5); // More erratic
       this.applyForce(wanderForce);
     } else {
-      let wanderForce = this.wander();
-      this.applyForce(wanderForce);
+      // AI Thinking (Phase 1)
+      this.think(player, bullets);
     }
 
-    super.update();
+    // Update laser/bomb/rocket cooldowns (Run in both phases)
+    if (this.laserCooldownCounter > 0) this.laserCooldownCounter--;
+    if (this.bombCooldownCounter > 0) this.bombCooldownCounter--;
+    if (this.rocketCooldownCounter > 0) this.rocketCooldownCounter--;
 
+    // Always run physics update and edges check (Fixes Phase 2 movement)
+    super.update();
     this.edges();
 
-    // Update laser cooldown
-    if (this.laserCooldownCounter > 0) {
-      this.laserCooldownCounter--;
+    // Fitness increasing over time (survival reward)
+    this.score++;
+
+    // Common cooldowns update (moved out of Phase 1 block)
+
+
+
+    // Update Parry & Dodge cooldowns/states
+    if (this.parryCooldownCounter > 0) this.parryCooldownCounter--;
+    if (this.dodgeCooldownCounter > 0) this.dodgeCooldownCounter--;
+
+    if (this.isParrying) {
+      this.parryCounter--;
+      if (this.parryCounter <= 0) this.isParrying = false;
     }
-    if (this.bombCooldownCounter > 0) {
-      this.bombCooldownCounter--;
-    }
-    if (this.rocketCooldownCounter > 0) {
-      this.rocketCooldownCounter--;
+
+    if (this.isDodging) {
+      this.dodgeCounter--;
+      if (this.dodgeCounter <= 0) this.isDodging = false;
     }
 
     // Phase 2: Vertical laser cooldown
@@ -148,6 +246,7 @@ class Boss extends Vehicle {
       }
     }
   }
+
 
   // Generate random vertical laser positions with safe spaces
   generateVerticalLasers() {
@@ -220,6 +319,41 @@ class Boss extends Vehicle {
     return false;
   }
 
+  // Perform Parry Action
+  performParry(bullets) {
+    if (this.parryCooldownCounter <= 0 && !this.isParrying) {
+      this.isParrying = true;
+      this.parryCounter = this.parryDuration;
+      this.parryCooldownCounter = this.parryCooldown;
+
+      // Destroy nearby bullets
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        let d = p5.Vector.dist(this.pos, bullets[i].pos);
+        if (d < this.parryRadius) {
+          bullets[i].isActive = false; // Destroy bullet
+          // Visual feedback for destroyed bullet?
+          this.score += 50; // Reward for successful parry
+        }
+      }
+    }
+  }
+
+  // Perform Dodge Action
+  performDodge() {
+    if (this.dodgeCooldownCounter <= 0 && !this.isDodging) {
+      this.isDodging = true;
+      this.dodgeCounter = this.dodgeDuration;
+      this.dodgeCooldownCounter = this.dodgeCooldown;
+
+      // Dash in current velocity direction or random if still
+      let dashDir = this.vel.copy();
+      if (dashDir.mag() === 0) dashDir = p5.Vector.random2D();
+      dashDir.normalize();
+      dashDir.mult(15); // Big burst of speed
+      this.applyForce(dashDir);
+    }
+  }
+
   // Start charging laser towards target
   chargeLaser(target) {
     if (!this.isChargingLaser && !this.isFiringLaser && this.laserCooldownCounter <= 0) {
@@ -284,6 +418,7 @@ class Boss extends Vehicle {
 
   hit() {
     this.health--;
+    this.score -= 100; // PENALTY for getting hit
 
     if (this.health <= 0) {
       if (this.phase === 1 && !this.phase2Triggered) {
@@ -477,6 +612,28 @@ class Boss extends Vehicle {
     let phaseText = this.phase === 2 ? " [PHASE 2]" : "";
     text("BOSS: " + this.health + "/" + this.maxHealth + phaseText, this.pos.x, barY - 5);
     pop();
+
+    // Parry Visual
+    if (this.isParrying) {
+      push();
+      noFill();
+      stroke(0, 100, 255, 150);
+      strokeWeight(4);
+      circle(this.pos.x, this.pos.y, this.parryRadius * 2);
+      stroke(255, 255, 255, 100);
+      strokeWeight(2);
+      circle(this.pos.x, this.pos.y, this.parryRadius * 2 - 10);
+      pop();
+    }
+
+    // Dodge Visual (Ghost effect)
+    if (this.isDodging) {
+      push();
+      fill(255, 255, 255, 50);
+      noStroke();
+      circle(this.pos.x, this.pos.y, this.r * 2);
+      pop();
+    }
   }
 
   edges() {
