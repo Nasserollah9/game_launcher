@@ -39,12 +39,16 @@ let currentIndividualIndex = 0;
 
 // BOUNDARIES
 let boundaryMargin = 50;
+let laserSound;
+
 
 function setup() {
   // Set TensorFlow.js backend to 'cpu' for compatibility
   tf.setBackend('cpu');
 
   createCanvas(windowWidth, windowHeight);
+
+
 
 
 
@@ -242,6 +246,9 @@ function draw() {
           playerRockets.push(weapon);
         } else {
           weapons.push(weapon);
+        }
+        if (laserSound && laserSound.isLoaded()) {
+          laserSound.play();
         }
       }
     }
@@ -684,34 +691,82 @@ function draw() {
   displayUI();
 }
 
+
 function displayStartScreen() {
+  // Semi-transparent background overlay
   push();
+  rectMode(CORNER);
+  fill(0, 0, 0, 150);
+  rect(0, 0, width, height);
+
+  // Main Container
+  rectMode(CENTER);
+  fill(0, 0, 0, 200);
+  stroke(100, 100, 255);
+  strokeWeight(2);
+  rect(width / 2, height / 2, 600, 500, 20);
+
+  // TITLE
   fill(255);
+  noStroke();
   textAlign(CENTER, CENTER);
-  textSize(48);
-  text("AIRPLANE BOSS BATTLE", width / 2, height / 2 - 140);
+  textFont('Arial'); // Or load a custom font if available
+  textSize(52);
+  // Simple shadow effect
+  fill(0, 0, 0, 100);
+  text("AIRPLANE BOSS BATTLE", width / 2 + 4, height / 2 - 180 + 4);
+  fill(100, 200, 255);
+  text("AIRPLANE BOSS BATTLE", width / 2, height / 2 - 180);
 
-  textSize(24);
-  text("Controls:", width / 2, height / 2 - 60);
-  text("MOUSE - Move airplane", width / 2, height / 2 - 20);
-  text("CLICK - Fire weapon", width / 2, height / 2 + 15);
-  text("R - Switch weapon", width / 2, height / 2 + 50);
-  text("C - Dodge (invincible dash)", width / 2, height / 2 + 85);
-  text("SPACE - Parry (destroy nearby enemy)", width / 2, height / 2 + 120);
+  // CONTROLS SECTION
+  fill(255);
+  textSize(28);
+  text("MISSION BRIEFING", width / 2, height / 2 - 110);
 
+  // Line separator
+  stroke(255, 100);
+  strokeWeight(1);
+  line(width / 2 - 200, height / 2 - 90, width / 2 + 200, height / 2 - 90);
+  noStroke();
+
+  textAlign(LEFT, CENTER);
   textSize(20);
+  let startY = height / 2 - 50;
+  let spacing = 35;
+  let col1X = width / 2 - 220;
+  let col2X = width / 2 + 20;
+
+  // Column 1: Movement & Combat
+  fill(200, 200, 255); text("CONTROLS:", col1X, startY - 10);
+  fill(255);
+  text("🖱️ MOUSE: Pilot Airplane", col1X, startY + spacing);
+  text("💥 CLICK: Fire Weapons", col1X, startY + spacing * 2);
+  text("🔫 R: Switch Weapon", col1X, startY + spacing * 3);
+  text("✨ C: Dodge (Invincible)", col1X, startY + spacing * 4);
+
+  // Column 2: Advanced
+  fill(255, 100, 100); text("TACTICS:", col2X, startY - 10);
+  fill(255);
+  text("🛡️ SPACE: Parry / Reflect", col2X, startY + spacing);
+  text("🤖 A: Toggle Autopilot", col2X, startY + spacing * 2);
+
+  // WARNINGS
+  textAlign(CENTER);
   fill(255, 100, 100);
-  text("⚠ Boss spawns enemies, shoots lasers & drops bombs!", width / 2, height / 2 + 155);
-
+  textSize(18);
+  text("⚠ WARNING: Boss evolves and adapts to your tactics!", width / 2, height / 2 + 130);
   fill(255, 0, 255);
-  textSize(22);
-  text("💀 Survive PHASE 2 to win!", width / 2, height / 2 + 190);
+  text("SURVIVE PHASE 2 TO WIN", width / 2, height / 2 + 160);
 
-  textSize(32);
-  fill(0, 255, 0);
-  text("Click to Start", width / 2, height / 2 + 240);
+  // CLICK TO START (Pulsating)
+  let alpha = map(sin(frameCount * 0.1), -1, 1, 100, 255);
+  fill(0, 255, 0, alpha);
+  textSize(36);
+  text("CLICK TO LAUNCH MISSION", width / 2, height / 2 + 210);
+
   pop();
 }
+
 
 function displayUI() {
   push();
@@ -957,6 +1012,9 @@ function mousePressed() {
       playerRockets.push(weapon);
     } else {
       weapons.push(weapon);
+    }
+    if (laserSound && laserSound.isLoaded()) {
+      laserSound.play();
     }
   }
 }
